@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Hacker</title>
+
+<style>
+    body{
+        margin:0;
+        overflow:hidden;
+        background:black;
+        font-family:Arial, sans-serif;
+        color:#00ff99;
+        text-align:center;
+    }
+
+    h1{
+        margin-top:10px;
+        color:#00ff99;
+        text-shadow:0 0 10px #00ff99;
+    }
+
+    canvas{
+        display:block;
+        margin:20px auto;
+        background:#111;
+        border:3px solid #00ff99;
+        box-shadow:0 0 20px #00ff99;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>SHADOW HACKER</h1>
+
+<canvas id="game" width="800" height="400"></canvas>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let player = {
+    x:50,
+    y:180,
+    width:40,
+    height:40,
+    color:"#00ff99",
+    speed:5
+};
+
+let keys = {};
+let enemies = [];
+let score = 0;
+let gameOver = false;
+
+// Keyboard controls
+document.addEventListener("keydown",(e)=>{
+
+    keys[e.key] = true;
+
+    // Replay game
+    // Replay game with SPACE BAR
+if(gameOver && e.code === "Space"){
+    restartGame();
+    }
+});
+
+document.addEventListener("keyup",(e)=>{
+    keys[e.key] = false;
+});
+
+// Spawn enemy drones
+function spawnEnemy(){
+
+    if(gameOver) return;
+
+    enemies.push({
+        x:800,
+        y:Math.random()*360,
+        width:30,
+        height:30,
+        speed:3 + Math.random()*4,
+        color:"red"
+    });
+}
+
+setInterval(spawnEnemy,1000);
+
+// Restart function
+function restartGame(){
+
+    player.x = 50;
+    player.y = 180;
+
+    enemies = [];
+
+    score = 0;
+
+    gameOver = false;
+}
+
+// Update game
+function update(){
+
+    if(gameOver) return;
+
+    // Player movement
+    if(keys["ArrowUp"]) player.y -= player.speed;
+    if(keys["ArrowDown"]) player.y += player.speed;
+    if(keys["ArrowLeft"]) player.x -= player.speed;
+    if(keys["ArrowRight"]) player.x += player.speed;
+
+    // Borders
+    if(player.x < 0) player.x = 0;
+    if(player.y < 0) player.y = 0;
+    if(player.x > canvas.width - player.width)
+        player.x = canvas.width - player.width;
+
+    if(player.y > canvas.height - player.height)
+        player.y = canvas.height - player.height;
+
+    // Enemy movement
+    for(let i=0;i<enemies.length;i++){
+
+        enemies[i].x -= enemies[i].speed;
+
+        // Collision detection
+        if(
+            player.x < enemies[i].x + enemies[i].width &&
+            player.x + player.width > enemies[i].x &&
+            player.y < enemies[i].y + enemies[i].height &&
+            player.y + player.height > enemies[i].y
+        ){
+            gameOver = true;
+        }
+
+        // Remove off-screen enemies
+        if(enemies[i].x < -50){
+            enemies.splice(i,1);
+            score++;
+        }
+    }
+}
+
+// Draw everything
+function draw(){
+
+    // Background
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Grid effect
+    ctx.strokeStyle = "#003322";
+
+    for(let i=0;i<800;i+=40){
+        ctx.beginPath();
+        ctx.moveTo(i,0);
+        ctx.lineTo(i,400);
+        ctx.stroke();
+    }
+
+    for(let i=0;i<400;i+=40){
+        ctx.beginPath();
+        ctx.moveTo(0,i);
+        ctx.lineTo(800,i);
+        ctx.stroke();
+    }
+
+    // Player
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x,player.y,player.width,player.height);
+
+    // Enemies
+    enemies.forEach(enemy=>{
+        ctx.fillStyle = enemy.color;
+        ctx.fillRect(enemy.x,enemy.y,enemy.width,enemy.height);
+    });
+
+    // Score
+    ctx.fillStyle = "#00ff99";
+    ctx.font = "22px Arial";
+    ctx.fillText("Score: " + score,20,30);
+
+    // Game over screen
+    if(gameOver){
+
+        ctx.fillStyle = "red";
+        ctx.font = "50px Arial";
+        ctx.fillText("GAME OVER",240,180);
+
+        ctx.fillStyle = "white";
+        ctx.font = "28px Arial";
+        ctx.fillText("Press Space Bar to Replay",260,240);
+    }
+}
+
+// Main game loop
+function gameLoop(){
+
+    update();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+</script>
+
+</body>
+</html>
