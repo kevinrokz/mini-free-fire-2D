@@ -1,52 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Battle Arena X - Level 10 Finale</title>
-<style>
-    body { margin:0; overflow:hidden; background:#000; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    canvas { display:block; background:#1b5e20; }
-    
-    #ui {
-        position:absolute; top:20px; left:20px; color:white; 
-        font-size:22px; z-index:10; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px;
-    }
-    
-    #level-tag { color: #ffff00; font-size: 28px; font-weight: bold; display: block; margin-bottom: 5px; }
-    
-    #victory, #gameOver {
-        position:absolute; width:100%; height: 100%; top:0; left:0;
-        display:none; flex-direction: column; justify-content: center; 
-        align-items: center; z-index: 1000; background: rgba(0,0,0,0.85);
-    }
-    
-    #victory h1 { color: #ffff00; font-size: 80px; text-shadow: 0 0 20px #ffaa00; margin: 0; }
-    #gameOver h1 { color: #ff0000; font-size: 80px; margin: 0; }
-    
-    .btn {
-        margin-top: 20px; padding: 15px 40px; font-size: 24px; 
-        background: white; border: none; cursor: pointer; font-weight: bold;
-    }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Battle Arena X - Universal</title>
+    <style>
+        body { margin:0; overflow:hidden; background:#000; font-family:'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display:block; background: radial-gradient(circle, #1b5e20 0%, #0d2e10 100%); }
+        
+        /* Responsive UI */
+        #ui {
+            position:absolute; top:10px; left:10px; color:white; 
+            font-size: clamp(14px, 4vw, 20px); z-index: 10; 
+            background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 8px;
+            border: 1px solid #444; pointer-events: none;
+        }
+        
+        #lvl-text { color: #ffff00; font-weight: bold; }
+
+        /* Universal Controls Overlay */
+        #touch-zone {
+            position: absolute; bottom: 30px; width: 100%; 
+            display: flex; justify-content: space-between; padding: 0 30px; 
+            box-sizing: border-box; z-index: 20; pointer-events: none;
+            /* Hidden by default on laptops, shown via JS if touch is detected */
+            display: none; 
+        }
+
+        .joystick-base {
+            width: 120px; height: 120px; background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+            position: relative; pointer-events: auto;
+        }
+        .joystick-knob {
+            width: 50px; height: 50px; background: cyan; border-radius: 50%;
+            position: absolute; top: 35px; left: 35px; opacity: 0.8;
+        }
+
+        #fire-btn {
+            width: 90px; height: 90px; background: rgba(255, 68, 0, 0.4);
+            border: 3px solid white; border-radius: 50%; color: white;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; pointer-events: auto; user-select: none;
+        }
+
+        /* Screens */
+        .screen {
+            position:absolute; width:100%; height: 100%; top:0; left:0;
+            display:none; flex-direction: column; justify-content: center; 
+            align-items: center; z-index: 1000; background: rgba(0,0,0,0.85);
+        }
+        
+        .btn { 
+            padding: 15px 40px; font-size: 24px; background: #ffff00; 
+            border: none; cursor: pointer; font-weight: bold; border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
 
 <div id="ui">
-    <span id="level-tag">LEVEL <span id="lvl">1</span> / 10</span>
-    ❤️ Health: <span id="health">100</span> | 
-    ⭐ Level Kills: <span id="score">0</span> / 10
+    <span id="lvl-text">LEVEL <span id="lvl">1</span>/10</span><br>
+    HP: <span id="health">100</span> | Kills: <span id="score">0</span>/10
 </div>
 
-<div id="gameOver">
-    <h1>ELIMINATED</h1>
-    <button class="btn" onclick="location.reload()">TRY AGAIN</button>
+<div id="touch-zone">
+    <div id="joyBase" class="joystick-base">
+        <div id="joyKnob" class="joystick-knob"></div>
+    </div>
+    <div id="fire-btn">FIRE</div>
 </div>
 
-<div id="victory">
-    <h1>VICTORY!</h1>
-    <p style="color: white; font-size: 24px;">YOU CLEARED ALL 10 LEVELS</p>
-    <button class="btn" onclick="location.reload()" style="background: #ffff00;">PLAY AGAIN</button>
+<div id="gameOver" class="screen">
+    <h1 style="color:#ff4400; font-size: 60px;">WIPED OUT</h1>
+    <button class="btn" onclick="location.reload()">RETRY</button>
+</div>
+
+<div id="victory" class="screen">
+    <h1 style="color:#ffff00; font-size: 60px;">CHAMPION!</h1>
+    <button class="btn" onclick="location.reload()">PLAY AGAIN</button>
 </div>
 
 <canvas id="game"></canvas>
@@ -54,187 +86,190 @@
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
 
-const healthText = document.getElementById("health");
-const scoreText = document.getElementById("score");
-const levelText = document.getElementById("lvl");
-const gameOverScreen = document.getElementById("gameOver");
-const victoryScreen = document.getElementById("victory");
+// --- 1. SIZING & ADAPTABILITY ---
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
-let keys = {};
-let bullets = [];
-let enemyBullets = [];
-let enemies = [];
-let score = 0;
-let level = 1;
-let gameRunning = true;
+// Detect Touch Device
+if ('ontouchstart' in window) {
+    document.getElementById('touch-zone').style.display = 'flex';
+}
 
-let player = {
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    size: 25,
-    speed: 6,
-    health: 100
+// --- 2. GAME STATE ---
+let score = 0, level = 1, gameRunning = true;
+let bullets = [], enemyBullets = [], enemies = [], keys = {};
+let player = { 
+    x: canvas.width / 2, 
+    y: canvas.height * 0.8, 
+    size: Math.min(canvas.width, canvas.height) * 0.03, // Scalable size
+    speed: 6, 
+    health: 100 
 };
 
-document.addEventListener("keydown", (e) => { 
-    keys[e.key] = true; 
+// --- 3. HYBRID CONTROLS ---
+let joyX = 0, joyY = 0, isTouching = false;
+const joyBase = document.getElementById("joyBase");
+const joyKnob = document.getElementById("joyKnob");
+
+// Touch Movement
+joyBase.addEventListener("touchstart", (e) => { isTouching = true; handleJoy(e); });
+joyBase.addEventListener("touchmove", (e) => { handleJoy(e); e.preventDefault(); });
+joyBase.addEventListener("touchend", () => { 
+    isTouching = false; joyX = 0; joyY = 0; 
+    joyKnob.style.transform = `translate(0px, 0px)`;
+});
+
+function handleJoy(e) {
+    const touch = e.touches[0];
+    const rect = joyBase.getBoundingClientRect();
+    const centerX = rect.left + rect.width/2;
+    const centerY = rect.top + rect.height/2;
+    const dist = Math.min(50, Math.hypot(touch.clientX - centerX, touch.clientY - centerY));
+    const angle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
+    
+    joyX = Math.cos(angle) * (dist / 50);
+    joyY = Math.sin(angle) * (dist / 50);
+    joyKnob.style.transform = `translate(${joyX * 40}px, ${joyY * 40}px)`;
+}
+
+// Shooting (Mobile + Laptop)
+document.getElementById("fire-btn").addEventListener("touchstart", (e) => {
+    if(gameRunning) shoot();
+    e.preventDefault();
+});
+window.addEventListener("keydown", (e) => {
+    keys[e.key] = true;
     if(e.code === "Space" && gameRunning) shoot();
 });
-document.addEventListener("keyup", (e) => { keys[e.key] = false; });
+window.addEventListener("keyup", (e) => keys[e.key] = false);
 
+// --- 4. CORE ENGINE ---
 function shoot() {
-    bullets.push({ x: player.x, y: player.y, radius: 6, speed: 12 });
+    bullets.push({ x: player.x, y: player.y, r: 5, s: 12 });
 }
 
 function spawnEnemy() {
     if (!gameRunning) return;
-    
-    // Difficulty increases per level
     enemies.push({
         x: Math.random() * canvas.width,
-        y: Math.random() * (canvas.height / 3),
-        size: 25,
-        speed: 1.5 + (level * 0.4), 
-        shootTimer: 0,
-        shootSpeed: 100 - (level * 6) // Enemies shoot faster every level
+        y: -30,
+        size: player.size,
+        speed: 1.2 + (level * 0.4),
+        timer: 0,
+        fireRate: 110 - (level * 7)
     });
-
-    let nextSpawn = 1800 - (level * 120);
-    setTimeout(spawnEnemy, Math.max(500, nextSpawn));
-}
-
-function checkProgression() {
-    if (score >= 10) {
-        if (level < 10) {
-            level++;
-            score = 0;
-            player.health = Math.min(100, player.health + 40); // Heal on level up
-            
-            // Update UI
-            levelText.innerText = level;
-            scoreText.innerText = score;
-            healthText.innerText = player.health;
-        } else {
-            // FINISHED LEVEL 10
-            winGame();
-        }
-    }
-}
-
-function winGame() {
-    gameRunning = false;
-    victoryScreen.style.display = "flex";
-    enemies = [];
-    enemyBullets = [];
+    setTimeout(spawnEnemy, Math.max(500, 2000 - (level * 150)));
 }
 
 function update() {
     if (!gameRunning) return;
 
-    if (keys["ArrowUp"]) player.y -= player.speed;
-    if (keys["ArrowDown"]) player.y += player.speed;
-    if (keys["ArrowLeft"]) player.x -= player.speed;
-    if (keys["ArrowRight"]) player.x += player.speed;
+    // Movement (Joystick or Keyboard)
+    if (isTouching) {
+        player.x += joyX * player.speed;
+        player.y += joyY * player.speed;
+    }
+    if (keys["ArrowUp"] || keys["w"]) player.y -= player.speed;
+    if (keys["ArrowDown"] || keys["s"]) player.y += player.speed;
+    if (keys["ArrowLeft"] || keys["a"]) player.x -= player.speed;
+    if (keys["ArrowRight"] || keys["d"]) player.x += player.speed;
 
-    // Boundaries
+    // Constrain to screen
     player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
     player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
 
+    // Projectiles
     bullets.forEach((b, i) => {
-        b.y -= b.speed;
+        b.y -= b.s;
         if (b.y < 0) bullets.splice(i, 1);
     });
 
-    enemies.forEach((enemy, eIndex) => {
-        let dx = player.x - enemy.x;
-        let dy = player.y - enemy.y;
+    // Enemy Logic
+    enemies.forEach((en, ei) => {
+        let dx = player.x - en.x, dy = player.y - en.y;
         let angle = Math.atan2(dy, dx);
+        en.x += Math.cos(angle) * en.speed;
+        en.y += Math.sin(angle) * en.speed;
 
-        enemy.x += Math.cos(angle) * enemy.speed;
-        enemy.y += Math.sin(angle) * enemy.speed;
-
-        enemy.shootTimer++;
-        if (enemy.shootTimer > enemy.shootSpeed) {
-            enemyBullets.push({
-                x: enemy.x, y: enemy.y,
-                dx: Math.cos(angle) * 7,
-                dy: Math.sin(angle) * 7,
-                radius: 5
-            });
-            enemy.shootTimer = 0;
+        en.timer++;
+        if (en.timer > en.fireRate) {
+            enemyBullets.push({ x: en.x, y: en.y, dx: Math.cos(angle)*6, dy: Math.sin(angle)*6 });
+            en.timer = 0;
         }
 
-        bullets.forEach((bullet, bIndex) => {
-            if (Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y) < enemy.size) {
-                enemies.splice(eIndex, 1);
-                bullets.splice(bIndex, 1);
-                score++;
-                scoreText.innerText = score;
-                checkProgression();
+        // Collision: Player Bullet -> Enemy
+        bullets.forEach((b, bi) => {
+            if (Math.hypot(b.x - en.x, b.y - en.y) < en.size + 5) {
+                enemies.splice(ei, 1); bullets.splice(bi, 1);
+                score++; updateUI();
+                if (score >= 10) levelUp();
             }
         });
     });
 
-    enemyBullets.forEach((b, i) => {
-        b.x += b.dx;
-        b.y += b.dy;
-        if (Math.hypot(b.x - player.x, b.y - player.y) < player.size) {
+    // Collision: Enemy Bullet -> Player
+    enemyBullets.forEach((eb, i) => {
+        eb.x += eb.dx; eb.y += eb.dy;
+        if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.size) {
             enemyBullets.splice(i, 1);
-            player.health -= 15;
-            healthText.innerText = player.health;
-            if (player.health <= 0) {
-                gameRunning = false;
-                gameOverScreen.style.display = "flex";
-            }
+            player.health -= 10; updateUI();
+            if (player.health <= 0) endGame("gameOver");
         }
+        if (eb.x < 0 || eb.x > canvas.width || eb.y < 0 || eb.y > canvas.height) enemyBullets.splice(i, 1);
     });
+}
+
+function updateUI() {
+    document.getElementById("health").innerText = player.health;
+    document.getElementById("score").innerText = score;
+    document.getElementById("lvl").innerText = level;
+}
+
+function levelUp() {
+    if (level < 10) {
+        level++; score = 0;
+        player.health = Math.min(100, player.health + 40);
+        updateUI();
+    } else endGame("victory");
+}
+
+function endGame(screenId) {
+    gameRunning = false;
+    document.getElementById(screenId).style.display = "flex";
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
     // Player
-    ctx.fillStyle = "cyan";
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.shadowBlur = 15; ctx.shadowColor = "cyan";
+    ctx.fillStyle = "cyan"; ctx.beginPath(); ctx.arc(player.x, player.y, player.size, 0, Math.PI*2); ctx.fill();
+    
     // Bullets
-    ctx.fillStyle = "yellow";
-    bullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-        ctx.fill();
-    });
-
+    ctx.shadowBlur = 5; ctx.fillStyle = "yellow";
+    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); });
+    
     // Enemy Bullets
     ctx.fillStyle = "#ff4400";
-    enemyBullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-        ctx.fill();
-    });
-
+    enemyBullets.forEach(eb => { ctx.beginPath(); ctx.arc(eb.x, eb.y, 4, 0, Math.PI*2); ctx.fill(); });
+    
     // Enemies
-    enemies.forEach(enemy => {
-        ctx.fillStyle = "red";
-        ctx.beginPath();
-        ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
-        ctx.fill();
+    ctx.shadowColor = "red";
+    enemies.forEach(en => {
+        ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, Math.PI*2); ctx.fill();
     });
+    ctx.shadowBlur = 0;
 }
 
-function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-}
+function loop() { update(); draw(); requestAnimationFrame(loop); }
 
 spawnEnemy();
-gameLoop();
+loop();
 </script>
 </body>
 </html>
